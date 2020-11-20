@@ -95,6 +95,7 @@ Menu, Tray, default,PEM Editor
 Menu, main, add, About PEM, about
 Menu, main, add, View Readme, readme
 Menu, main, add
+Menu, main, add, Silent Mode,silentmode
 Menu, main, add, Check registry on exit, donothingforreg
 Menu, main, add, Show balloon tip, showballoontip
 Menu, main, add, Exit, exittime
@@ -137,6 +138,7 @@ loop, read, pem.ini
 			LV_Add("",part1,addit)
 	}
 }
+gosub updateCombo
 LV_ModifyCol(1,40)
 LV_ModifyCol(2,"autohdr")
 
@@ -146,8 +148,8 @@ Gui 2:Add,groupbox,x5 y1 h70 w330 vgbox,Add
 Gui 2:Add,text,x13 y20,Extension
 Gui 2:Add,Edit,x13 y35 w50 veExt gifempty,
 Gui 2:Add,text,x70 y20,Path\Program
-Gui 2:Add,edit,x70 y35 w240 vpPath gautocomplete			;gifempty2
-Menu, autocomplete, add
+Gui 2:Add,combobox,x70 y35 w240 vpPath			gifempty2
+gosub updateCombo
 Gui 2:Add,Button, y34 x315 w15 gpathselect,…
 Gui 2:Add, Button, y80 x200 w60 vok2 default disabled, OK
 Gui 2:Add, Button,y80 x270 w60, Cancel
@@ -166,6 +168,14 @@ gui 3: add, text, CBlue y75 x70 gemail, FreewareWire@gmail.com
 Gui 3: add, text, CBlue y90 x70 gwebsite,www.FreewareWire.blogspot.com
 gui 3: font
 
+	;Silent mode
+iniread, silent, pem.ini, config, silent, 0
+if(silent=1)
+{	Menu, main, check, Silent Mode
+	Menu, main, disable, Check registry on exit
+	Menu, main, disable, Show Balloon tip
+	goto install
+}
 gosub checkcontext
 
 gui 1: show, w345, PEM - Portable Extension Manager
@@ -207,9 +217,9 @@ Return
 	;Readme
 readme:
 ifnotexist, readme.txt
-	{ gui 1: +owndialogs
-	  msgbox,48,File Not Found, The Readme does not seem to exist.	
-	  Return
+	{ 	gui 1: +owndialogs	
+		msgbox,48,File Not Found, The Readme does not seem to exist.	
+		Return
 	}
 run, readme.txt
 return
@@ -244,6 +254,23 @@ Splitpath, ppath,p2,p1,,,pn
 Stringreplace, p1, p1, %pn%\,
 ppath:=p1 . "\" . p2
 Guicontrol 2:,ppath,%ppath%
+return
+
+	;Handles the "Silent Mode" Menu option
+silentmode:
+iniread, tempy, pem.ini, config, silent,0
+ifequal, tempy, 0
+{	Menu, main, check, Silent Mode
+	Menu, main, disable, Check registry on exit
+	Menu, main, disable, Show Balloon tip
+	iniwrite, 1, pem.ini, config, silent
+}
+else
+{	Menu, main, uncheck, Silent Mode
+	Menu, main, enable, Check registry on exit
+	Menu, main, enable, Show Balloon tip
+	iniwrite, 0, pem.ini, config, silent
+}
 return
 
 	;Checks if "registry check on exit" is enabled
@@ -285,6 +312,20 @@ Guicontrol 2:, gbox, Edit extension - %rowExt%
 GuiControl 2:, eExt, %rowext%
 GuiControl 2:, pPath, %rowpath%
 }
+return
+
+	;Updates the drop down list of previously used paths
+updateCombo:
+guicontrol 2:,pPath,|
+gui 1: default
+CB_String=
+Loop, % LV_GetCount()
+{	gui 1: default
+	LV_GetText(tempy,A_Index,2)
+	CB_String:=CB_String . tempy . "|"
+}
+Sort, CB_String,D| U Z
+guicontrol 2:,ppath,%CB_STRING%
 return
 
 	;Checks if the context is installed
@@ -379,6 +420,7 @@ ifequal, deleteIt, % LV_GetCount() + 1
  LV_Modify(deleteIT - 1, "Select")
 Else
  LV_Modify(deleteIt, "Select")
+gosub updateCombo
 Inidelete, pem.ini, key, %tempext%
 return
 
@@ -387,14 +429,16 @@ return
 Gui 2:submit, nohide
 if(comparetocurrent(eext)=1)
 {	gui 2: +owndialogs
-	msgbox,,Extension already set,There is already a program set for the extension %ppath%!
+	msgbox,,Extension already set,There is already a program set for the extension %eext%!
 	Return
 }
 gui 2: hide
 IniWrite, %pPath%, pem.ini, key, %eExt%
 gui 1: default
 if numero = 0
-	LV_Add("",eext,ppath)
+{  LV_Add("",eext,ppath)
+	gosub updateCombo
+}
 Else
 	LV_Modify(numero,"",eext,ppath)
 	;Handles if "Cancel" button is pressed in Add/Edit
@@ -406,6 +450,11 @@ return
 
 	;For when it is time to exit
 exittime:
+iniread, silent, pem.ini, config, silent, 0
+if(silent=1)
+{	Regdelete, HKEY_CLASSES_ROOT, *\shell\PEM
+	ExitApp
+}
 Iniread, nothing, pem.ini, config, checkregistry
 ifnotequal, nothing, 0
 {
@@ -439,25 +488,7 @@ comparetocurrent(newextension) {
 	return 0
 }
 
-	;autocomplete...hopefully
-autocomplete:
-gui 2: submit, nohide
-if(ppath="")
-	return
-Menu, autocomplete, deleteall															;Removeall
-Gui 1: default
-loop, % LV_GetCount()
-	{	LV_GetText(checkit,A_Index,2)	
-		if(ppath=SubStr(checkit,1,Strlen(ppath)))
-			Menu, autocomplete, add, %checkit%,insertautocomplete						;Add
-	}
-Menu, autocomplete, show																;Show
-return
 	
-insertautocomplete:
-return
-	
-
 	;Massive function to determine the drive
 weedrives(drv)
 { 	ifequal, drv, A:
