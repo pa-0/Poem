@@ -1,9 +1,8 @@
 #SingleInstance off
-
 file=%1%
 ifequal, file,
 	goto nofile
-ifnotexist, %file%
+	ifnotexist, %file%
 	{ msgbox,48,Error 404, The file:`n`n%file%`n`n either does not exist`, or is not a valid argument.
 	  ExitApp
 	}
@@ -12,7 +11,7 @@ Splitpath, file,,,ext
 Iniread, program, pem.ini, key, %ext%
 ifequal, program, error
 	errorconsole("Program not set for extension","There is currently no program set for `n`n." ext "`n", file)
-iniread, drv, pem.ini, drive, drive
+iniread, drv, pem.ini, config, drive
 ifequal, drv, PEM
 	Splitpath, A_scriptDir,,,,,drv
 program=%drv%\%program%
@@ -33,6 +32,7 @@ exitapp
 }
 
 
+
 nofile:
 
 Menu, Tray, NoStandard
@@ -47,14 +47,30 @@ Menu, Tray, default,PEM Editor
 
 Menu, main, add, About PEM, about
 Menu, main, add, View Readme, readme
+Menu, main, add
+Menu, main, add, Check registry on exit, donothingforreg
+Menu, main, add, Show balloon tip, showballoontip
 Menu, main, add, Exit, exittime
 
+Iniread, tempy, pem.ini, config, checkRegistry
+if(tempy = "" or not tempy = 0)
+	Menu, main, check,Check registry on exit
+
+Iniread, tempy, pem.ini, config, balloon
+if(tempy <> 0)
+{	Menu, main, check, Show balloon tip
+	balloon=1
+}
+Else
+	balloon=0
+	
+	
 gui 1: add, listview, r10 w325 gLouisValkner -multi +sort, Ext|Program
 gui 1: add, button, w40 x20 y170 h20 vnewbutton, New
 gui 1: add, button, w40 x70 y170 h20 vdelbutton, Del
 Gui 1:Add,text,x115 y173, Drive:
 Gui 1:Add, dropdownlist, w50 y170 x150 r7 vddrive gwritedrive,%weedrives%
-	iniread, drv, pem.ini, drive, drive
+	iniread, drv, pem.ini, config, drive
 	weedrives(drv)
 
 gui 1: font, underline w600
@@ -81,6 +97,7 @@ Gui 2:Add,text,x13 y20,Extension
 Gui 2:Add,Edit,x13 y35 w50 veExt gifempty,
 Gui 2:Add,text,x70 y20,Path\Program
 Gui 2:Add,Edit,x70 y35 w240 vpPath gifempty2
+Gui 2:Add,Button, y34 x315 w15 gpathselect,…
 Gui 2:Add, Button, y80 x200 w60 vok2 default disabled, OK
 Gui 2:Add, Button,y80 x270 w60, Cancel
 Gui 2:Font, s10 underline cRed
@@ -88,10 +105,13 @@ Gui 2:Add, text, y80 x7 greadme, DO NOT include the drive letter!
 
 Gui 3: +owner1 +toolwindow
 Gui 3: add, picture, icon1 x10 y10 w50 h50, %A_scriptname%
-gui 3: add, text,y10 x70 w250, PEM stands for `"Portable Extension Manager`". It is designed to simplify opening files without adding file associations to registry. It was written in Autohotkey by Jon (me). For more information`, view the readme.
+Gui 3: font, underline w600
+Gui 3: add, text,y3 x70, PEM v0.925
+gui 3: font
+gui 3: add, text,y20 x70 w250, PEM stands for `"Portable Extension Manager`". It is designed to simplify opening files without adding file associations to registry. It was written in Autohotkey by Jon (me). For more information`, view the readme.
 gui 3: font, underline
-gui 3: add, button, x160 y70 greadme, View Readme
-gui 3: add, text, CBlue x90 y100 gemail, amadmadhatter@gmail.com
+gui 3: add, text, CBlue y75 x70 gemail, amadmadhatter@gmail.com
+Gui 3: add, text, CBlue y90 x70 gwebsite,www.FreewareWire.blogspot.com
 gui 3: font
 
 gosub checkcontext
@@ -108,67 +128,8 @@ ifnotequal, firsttime, 0
 }
 
 
-OnMessage(0x200, "TT_OOHSHINY")
-
-oohshiny_tt := " You wanna know what this button`n does`, don't you? Go on`, click it.`n I won't tell anyone."
-;context_tt := " Add/Remove an 'Open with PEM'`n option to the right click menu."
-;ddrive_tt := " Select the drive the programs are on.`n 'PEM' means the same drive as PEM, `n meaning it will change.`n (PEM is the suggested option.)"
-;newbutton_tt := " Creates a new entry"
-;delbutton_tt := " Deletes the selected entry"
-
 Return
 
-
-TT_OOHSHINY()
-{
-    static CurrControl, PrevControl, _TT
-    CurrControl := A_GuiControl
-    If (CurrControl <> PrevControl and not InStr(CurrControl, " "))
-    {
-        ToolTip
-        SetTimer, DisplayToolTip, 1000
-        PrevControl := CurrControl
-    }
-    return
-
-    DisplayToolTip:
-    SetTimer, DisplayToolTip, Off
-	ifequal, CurrControl, oohshiny
-    ToolTip % %CurrControl%_TT
-    return
-
-    RemoveToolTip:
-    SetTimer, RemoveToolTip, Off
-    ToolTip
-    return
-}
-
-
-;UNEEDED!
-/*
-WM_MOUSEMOVE()
-{
-    static CurrControl, PrevControl, _TT
-    CurrControl := A_GuiControl
-    If (CurrControl <> PrevControl and not InStr(CurrControl, " "))
-    {
-        ToolTip
-        SetTimer, DisplayToolTip, 1000
-        PrevControl := CurrControl
-    }
-    return
-
-    DisplayToolTip:
-    SetTimer, DisplayToolTip, Off
-    ToolTip % %CurrControl%_TT
-    return
-
-    RemoveToolTip:
-    SetTimer, RemoveToolTip, Off
-    ToolTip
-    return
-}
-*/
 
 PEMe:
 gui 1: show, w345, PEM - Portable Extension Manager
@@ -184,6 +145,9 @@ ifnotexist, readme.txt
 	  Return
 	}
 run, readme.txt
+return
+website:
+run, http:\\www.freewarewire.blogspot.com
 return
 email:
 run, mailto:amadmadhatter@gmail.com
@@ -203,6 +167,40 @@ ifequal, eext,
 guicontrol 2:enabled,ok2,
 return
 
+pathselect:
+FileselectFile, ppath,,,Select Program
+Splitpath, ppath,p2,p1,,,pn
+Stringreplace, p1, p1, %pn%\,
+ppath:=p1 . p2
+Guicontrol 2:,ppath,%ppath%
+return
+
+
+Donothingforreg:
+Iniread, tempy, pem.ini, config, checkRegistry
+ifequal, tempy, 0
+{	Menu, main, check, Check registry on exit
+	iniwrite, 1, pem.ini, config, checkregistry
+}
+Else
+{	Menu, main, uncheck, Check registry on exit
+	iniwrite, 0, pem.ini, config, checkregistry
+}
+return
+
+showballoontip:
+iniread, tempy, pem.ini, config, balloon
+ifequal, tempy, 0
+{	menu, main, check, Show balloon tip
+	iniwrite, 1, pem.ini, config, balloon
+	ballon=0
+}
+else
+{	Menu, main, uncheck, Show balloon tip
+	iniwrite, 0, pem.ini, config, balloon
+	Ballon=1
+}
+return
 
 LouisValkner:
 ifequal, A_GuiEvent,DoubleClick
@@ -259,11 +257,10 @@ gosub, checkcontext
 return
 
 guiclose:
-iniread, balloon, pem.ini, config, balloon
 ifnotequal, balloon, 0
 { 	traytip,,PEM will stay in your tray because it loves you.
 	Settimer, ontip, 3000
-	iniwrite, 0, pem.ini, config, balloon
+	Balloon=0
 }
 gui 1: hide
 gui 2: hide
@@ -315,6 +312,9 @@ gui 1: show
 return
 
 exittime:
+Iniread, nothing, pem.ini, config, checkregistry
+ifnotequal, nothing, 0
+{
 gosub checkcontext
 ifequal, ui, un
 { gui 1: +owndialogs
@@ -324,12 +324,13 @@ ifequal, ui, un
 	else ifmsgbox, Cancel
 		Return
 }
+}
 iniwrite, 1, pem.ini, config, balloon
 exitapp
 
 writedrive:
 gui 1:submit, nohide
-iniwrite, %ddrive%, pem.ini, drive, drive
+iniwrite, %ddrive%, pem.ini, config, drive
 Return
 
 weedrives(drv)
@@ -385,5 +386,11 @@ weedrives(drv)
 		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:||Z:
 	else ifequal, drv, Z:
 		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:||
-	else GuiControl 1:,ddrive, PEM||A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
+	else 
+	{	GuiControl 1:,ddrive, PEM||A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
+		Iniwrite, PEM, pem.ini, config, drive
+	}
+	
 }
+
+^+r::reload
