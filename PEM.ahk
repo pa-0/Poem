@@ -23,7 +23,8 @@ run, %full%
 exitapp
 	
 errorconsole(Thing1, Thing2, file)
-{ Msgbox,51,%Thing1%,%Thing2%`n-----------------------`nDo you want to continue?`nYes = Open the file with the default system program`nNo = Open the PEM editor`nCancel = Do nothing
+{ gui 1: +owndialogs
+  Msgbox,51,%Thing1%,%Thing2%`n-----------------------`nDo you want to continue?`nYes = Open the file with the default system program`nNo = Open the PEM editor`nCancel = Do nothing	
 ifmsgbox,Yes
 	run, %file%
 ifmsgbox, No
@@ -33,17 +34,33 @@ exitapp
 
 
 nofile:
-gui 1: add, listview, r10 w325 gLouisValkner -multi, Ext|Program
-gui 1: add, button, w40 x20 y170 h20, New
-gui 1: add, button, w40 x70 y170 h20, Del
-Gui 1:Add,text,x120 y173, Drive:
-Gui 1:Add, dropdownlist, w50 y170 x155 r7 vddrive gwritedrive,%weedrives%
+
+Menu, Tray, NoStandard
+menu, tray, Click, 1
+Menu, Tray, Tip, PEM - Context is installed
+Menu, Tray, add, PEM Editor, PEMe
+Menu, Tray, add, Install context, install
+Menu, Tray, add, Remove Context, remove
+Menu, Tray, add, About PEM, About
+Menu, Tray, add, Exit, exittime
+Menu, Tray, default,PEM Editor
+
+Menu, main, add, About PEM, about
+Menu, main, add, View Readme, readme
+Menu, main, add, Exit, exittime
+
+gui 1: add, listview, r10 w325 gLouisValkner -multi +sort, Ext|Program
+gui 1: add, button, w40 x20 y170 h20 vnewbutton, New
+gui 1: add, button, w40 x70 y170 h20 vdelbutton, Del
+Gui 1:Add,text,x115 y173, Drive:
+Gui 1:Add, dropdownlist, w50 y170 x150 r7 vddrive gwritedrive,%weedrives%
 	iniread, drv, pem.ini, drive, drive
 	weedrives(drv)
 
-
 gui 1: font, underline w600
-gui 1: add, Button, x220 y170 w105 gcontextGO vcontext
+gui 1: add, Button, x207 y170 w105 gcontextGO vcontext
+gui 1: font
+gui 1: add, button, y172 x317 w20 h20 gmainmenu voohshiny,?
 
 loop, read, pem.ini
 {
@@ -55,20 +72,21 @@ loop, read, pem.ini
 			LV_Add("",part1,addit)
 	}
 }
-LV_ModifyCol()
 LV_ModifyCol(1,40)
-LV_ModifyCol(1,"Sort")
+LV_ModifyCol(2,"autohdr")
 
+Gui 2: +owner1
 Gui 2:Add,groupbox,x5 y1 h70 w330 vgbox,Add
 Gui 2:Add,text,x13 y20,Extension
 Gui 2:Add,Edit,x13 y35 w50 veExt gifempty,
 Gui 2:Add,text,x70 y20,Path\Program
-Gui 2:Add,Edit,x70 y35 w250 vpPath gifempty2
+Gui 2:Add,Edit,x70 y35 w240 vpPath gifempty2
 Gui 2:Add, Button, y80 x200 w60 vok2 default disabled, OK
 Gui 2:Add, Button,y80 x270 w60, Cancel
 Gui 2:Font, s10 underline cRed
-Gui 2:Add, text, y80 x7, DO NOT include the drive letter!
+Gui 2:Add, text, y80 x7 greadme, DO NOT include the drive letter!
 
+Gui 3: +owner1 +toolwindow
 Gui 3: add, picture, icon1 x10 y10 w50 h50, %A_scriptname%
 gui 3: add, text,y10 x70 w250, PEM stands for `"Portable Extension Manager`". It is designed to simplify opening files without adding file associations to registry. It was written in Autohotkey by Jon (me). For more information`, view the readme.
 gui 3: font, underline
@@ -76,32 +94,81 @@ gui 3: add, button, x160 y70 greadme, View Readme
 gui 3: add, text, CBlue x90 y100 gemail, amadmadhatter@gmail.com
 gui 3: font
 
-Menu, Tray, NoStandard
-Menu, Tray, Tip, PEM - Context is installed
-;Menu, Tray, icon, %A_scriptname%
-Menu, Tray, add, PEM Editor, PEMe
-Menu, Tray, add, Install context, install
-Menu, Tray, add, Remove Context, remove
-Menu, Tray, add, About PEM, About
-Menu, Tray, add, Exit, exittime
-Menu, Tray, default,PEM Editor
-
-menu, mainmenu, add, !, :tray
-gui 1: menu, mainmenu
-Gui 1:Add, GroupBox, x0 y-10 h12 w345
-
 gosub checkcontext
 
 gui 1: show, w345, PEM - Portable Extension Manager
 
 iniread, firsttime, pem.ini, config, firsttime
 ifnotequal, firsttime, 0
-{	msgbox, 68, Read the manual!, Greetings! It looks like this is your first time using PEM. If it is, I highly suggest skimming the readme so you know what does what, the dos and donts, and such. It'll only take like 2 minutes, I swear. It would make me ever so happy.`n-Jon
+{	gui 1: +owndialogs
+	msgbox, 68, Read the manual!, Greetings! It looks like this is your first time using PEM.`nIf it is, I highly suggest skimming the readme so you know`nwhat does what, the dos and donts, and such. It'll only take`nlike 2 minutes, I swear. It would make me ever so happy.`n-Jon		
 	ifmsgbox, Yes
 		gosub readme
 	iniwrite, 0, pem.ini, config, firsttime
 }
+
+
+OnMessage(0x200, "TT_OOHSHINY")
+
+oohshiny_tt := " You wanna know what this button`n does`, don't you? Go on`, click it.`n I won't tell anyone."
+;context_tt := " Add/Remove an 'Open with PEM'`n option to the right click menu."
+;ddrive_tt := " Select the drive the programs are on.`n 'PEM' means the same drive as PEM, `n meaning it will change.`n (PEM is the suggested option.)"
+;newbutton_tt := " Creates a new entry"
+;delbutton_tt := " Deletes the selected entry"
+
 Return
+
+
+TT_OOHSHINY()
+{
+    static CurrControl, PrevControl, _TT
+    CurrControl := A_GuiControl
+    If (CurrControl <> PrevControl and not InStr(CurrControl, " "))
+    {
+        ToolTip
+        SetTimer, DisplayToolTip, 1000
+        PrevControl := CurrControl
+    }
+    return
+
+    DisplayToolTip:
+    SetTimer, DisplayToolTip, Off
+	ifequal, CurrControl, oohshiny
+    ToolTip % %CurrControl%_TT
+    return
+
+    RemoveToolTip:
+    SetTimer, RemoveToolTip, Off
+    ToolTip
+    return
+}
+
+
+;UNEEDED!
+/*
+WM_MOUSEMOVE()
+{
+    static CurrControl, PrevControl, _TT
+    CurrControl := A_GuiControl
+    If (CurrControl <> PrevControl and not InStr(CurrControl, " "))
+    {
+        ToolTip
+        SetTimer, DisplayToolTip, 1000
+        PrevControl := CurrControl
+    }
+    return
+
+    DisplayToolTip:
+    SetTimer, DisplayToolTip, Off
+    ToolTip % %CurrControl%_TT
+    return
+
+    RemoveToolTip:
+    SetTimer, RemoveToolTip, Off
+    ToolTip
+    return
+}
+*/
 
 PEMe:
 gui 1: show, w345, PEM - Portable Extension Manager
@@ -112,7 +179,8 @@ Return
 
 readme:
 ifnotexist, readme.txt
-	{ msgbox,48,File Not Found, The Readme does not seem to exist.
+	{ gui 1: +owndialogs
+	  msgbox,48,File Not Found, The Readme does not seem to exist.	
 	  Return
 	}
 run, readme.txt
@@ -140,6 +208,7 @@ LouisValkner:
 ifequal, A_GuiEvent,DoubleClick
 { LV_GetText(rowExt, A_EventInfo,1)
 LV_GetText(Rowpath, A_EventInfo,2)
+numero:=A_EventInfo
 Gui 2: show, autosize,Edit entry
 Guicontrol 2:, gbox, Edit extension - %rowExt%
 GuiControl 2:, eExt, %rowext%
@@ -175,6 +244,10 @@ ifequal, UI, Un
 	gosub, remove
 return
 
+mainmenu:
+Menu, main, show
+return
+
 install:
 RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\,,Open with PEM
 RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\command,,`"%A_scriptfullpath%`" `"`%1`"
@@ -193,7 +266,14 @@ ifnotequal, balloon, 0
 	iniwrite, 0, pem.ini, config, balloon
 }
 gui 1: hide
+gui 2: hide
+gui 3: hide
 Return
+2guiclose:
+gui 1: -Disabled
+gui 2: hide
+gui 1: show
+return
 ontip:
 settimer, ontip, off
 traytip
@@ -201,9 +281,11 @@ return
 
 ButtonNew:
 gui 2: show, autosize,Add entry
+gui 1: +disabled
 Guicontrol 2:, ppath,
 guicontrol 2:, eext,
 Guicontrol 2:, gbox, New Extension
+numero=0
 return
 
 ButtonDel:
@@ -222,16 +304,21 @@ return
 Gui 2:submit
 IniWrite, %pPath%, pem.ini, key, %eExt%
 gui 1: default
-LV_Add("",eext,ppath)
-LV_ModifyCol(1,"Sort")
+if numero = 0
+	LV_Add("",eext,ppath)
+Else
+	LV_Modify(numero,"",eext,ppath)
 2ButtonCancel:
-WinClose
+gui 1: -Disabled
+gui 2: hide
+gui 1: show
 return
 
 exittime:
 gosub checkcontext
 ifequal, ui, un
-{ msgbox,51,Context still installed,The context is still installed. Do you want to remove it before quitting?`n`nYes = Remove context then quit`nNo = Quit without removing`nCancel = Do not remove or quit
+{ gui 1: +owndialogs
+	msgbox,51,Context still installed,The context is still installed. Do you want to remove it before quitting?`n`nYes = Remove context then quit`nNo = Quit without removing`nCancel = Do not remove or quit	
 	ifmsgbox, Yes
 		gosub remove
 	else ifmsgbox, Cancel
