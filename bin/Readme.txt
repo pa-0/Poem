@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~PEM version 0.925~~~~~~~~~~
+~~~~~~~~~PEM version 0.93~~~~~~~~~~~
 ~~~~~~~(C) Jon Petraglia 2009~~~~~~~
 ~~~~~FreewareWire.blogspot.com~~~~~~
 ~~~~~~amadmadhatter@gmail.com~~~~~~~
@@ -94,6 +94,10 @@ A: Well there are basically two trains of thought...
 
 
 8.----------Changelog---------------
+v0.93 beta
+-Added ability to resize window
+-Removed many "MS's" (Msgbox Syndromes)
+-Added the ability to handle multiple files
 v0.926 beta
 -Added Working Directory for programs
 -Added comments to program
@@ -135,9 +139,15 @@ Thanks so much for trying PEM. I hope you like it, and it serves you well.
 PS - If you want to see whatever programs/projects I'm working on, visit the "My Freeware" tag on my blog, or if it's not there, e-mail me.
 
 10.1----Special Thanks----
+
 Special thanks to:
 -The autohotkey documentation, for making up where my understanding lacked.
 -SciTE, for yet again saving me with AutoHotkey syntax, and for being portable.    http://www.scintilla.org/SciTE.html
 -The GIMP (http://www.gimp.org), for being there to help me design a simple icon, and for being portable.
 -My netbook, Lewis, for handling coding at all hours of the morning.
 -Autohotkey, for being so easy, an idiot like me could do it.
+-Titan, for the very very handy "Anchor" script, allowing the resizing of window (without which I could never have done.)	ttp://www.autohotkey.net/~Titan/
+
+People who have helped find bugs:
+-Willi
+-Brother Gabriel-Marie

@@ -1,31 +1,61 @@
 #SingleInstance off
+#include anchor.ahk
 	;The variable 1 contains the argument
-file=%1%
-ifequal, file,
+numofargs=%0%
+ifequal, numofargs,0
 	goto nofile
+	
+	
+	
+
+loop, %numofargs% {		;Loop to handle all arguments
+file:=%A_Index%
 ifnotexist, %file%
-	{ msgbox,48,Error 404, The file:`n`n%file%`n`n either does not exist`, or is not a valid argument.
-	  ExitApp
+	{ msgbox,48,Error 404, The file(s):`n`n%errormsg%`n`n could not be launched.
+		continue
 	}
 Setworkingdir, %A_ScriptDir%
 Splitpath, file,,,ext
 	;Read from file for program
 Iniread, program, pem.ini, key, %ext%
+
 ifequal, program, error
-	errorconsole("Program not set for extension","There is currently no program set for `n`n." ext "`n", file)
+{	if(ProgNotSet(program)="continue")
+		Continue
+}
 iniread, drv, pem.ini, config, drive
 	;Autodetects if PEM is read
 ifequal, drv, PEM
 	Splitpath, A_scriptDir,,,,,drv
+if(prognotexist(program)="continue")
+	continue
 program=%drv%\%program%
-	;Checks one last time if the program exists
-ifnotexist, %program%
-	errorconsole("Program not found", "The program:`n`n" program "`n`n does not seem to exist.", file)
 full=`"%program%`" `"%file%`"
 Splitpath, program,,dir
 	;File is passed as paramater, with working directory
 run, %full%,%dir%
+}
 exitapp
+
+
+ProgNotSet(Byref program) {
+	global
+	if(program!="error")
+		return
+	if(errorconsole("Program not set for extension","There is currently no program set for `n`n." ext "`n", file)="break")
+		return, % "continue"
+	Iniread, program, pem.ini, key, %ext%
+	ProgNotSet(program)
+}
+
+ProgNotExist(byref program) {
+	global
+	ifexist, %drv%\%program%
+		Return
+	if(errorconsole("Program not found", "The program:`n`n" program "`n`n does not seem to exist.", file)="break")
+		return, % "continue"
+	ProgNotExist(program)
+}
 	
 
 	;Just a universal error message.
@@ -33,10 +63,18 @@ errorconsole(Thing1, Thing2, file)
 { ;gui 1: +owndialogs
   Msgbox,51,%Thing1%,%Thing2%`n-----------------------`nDo you want to continue?`nYes = Open the file with the default system program`nNo = Open the PEM editor`nCancel = Do nothing	
 ifmsgbox,Yes
-	run, %file%
+{	run, %file%
+	return,% "break"
+}
 ifmsgbox, No
-	run, %A_Scriptfullpath%
-exitapp
+{	run, %A_Scriptfullpath%
+	winwait, PEM - Portable Extension Manager
+	winget, PID, PID, PEM - Portable Extension Manager
+	Process, waitclose, %PID%
+	return
+}
+	return,% "break"
+;exitapp
 }
 
 
@@ -66,24 +104,24 @@ Iniread, tempy, pem.ini, config, checkRegistry
 if(tempy = "" or not tempy = 0)
 	Menu, main, check,Check registry on exit
 
-Iniread, tempy, pem.ini, config, balloon
-if(tempy <> 0)
+Iniread, balloon, pem.ini, config, balloon
+if(balloon!=0)
 {	Menu, main, check, Show balloon tip
 	balloon=1
 }
-Else
-	balloon=0
-	
+
+
 	;GUI!
-gui 1: add, listview, r10 w325 gLouisValkner -multi +sort, Ext|Program
-gui 1: add, button, w40 x20 y170 h20, New
-gui 1: add, button, w40 x70 y170 h20, Del
-Gui 1:Add,text,x115 y173, Drive:
+Gui 1: +resize +minsize
+gui 1: add, listview, r10 w325 gLouisValkner -multi +sort vlouisvalkner, Ext|Program
+gui 1: add, button, w40 x20 y170 h20 vnewb, New
+gui 1: add, button, w40 x70 y170 h20 vdelb, Del
+Gui 1:Add,text,x115 y173 vdrivetext, Drive:
 Gui 1:Add, dropdownlist, w50 y170 x150 r7 vddrive gwritedrive,%weedrives%
 	iniread, drv, pem.ini, config, drive
 	weedrives(drv)
 
-gui 1: font, underline w600
+gui 1: font, underline w600 
 gui 1: add, Button, x207 y170 w105 gcontextGO vcontext
 gui 1: font
 gui 1: add, button, y172 x317 w20 h20 gmainmenu voohshiny,?
@@ -108,7 +146,8 @@ Gui 2:Add,groupbox,x5 y1 h70 w330 vgbox,Add
 Gui 2:Add,text,x13 y20,Extension
 Gui 2:Add,Edit,x13 y35 w50 veExt gifempty,
 Gui 2:Add,text,x70 y20,Path\Program
-Gui 2:Add,Edit,x70 y35 w240 vpPath gifempty2
+Gui 2:Add,edit,x70 y35 w240 vpPath gautocomplete			;gifempty2
+Menu, autocomplete, add
 Gui 2:Add,Button, y34 x315 w15 gpathselect,…
 Gui 2:Add, Button, y80 x200 w60 vok2 default disabled, OK
 Gui 2:Add, Button,y80 x270 w60, Cancel
@@ -123,7 +162,7 @@ Gui 3: add, text,y3 x70, PEM v0.925
 gui 3: font
 gui 3: add, text,y20 x70 w250, PEM stands for `"Portable Extension Manager`". It is designed to simplify opening files without adding file associations to registry. It was written in Autohotkey by Jon (me). For more information`, view the readme.
 gui 3: font, underline
-gui 3: add, text, CBlue y75 x70 gemail, amadmadhatter@gmail.com
+gui 3: add, text, CBlue y75 x70 gemail, FreewareWire@gmail.com
 Gui 3: add, text, CBlue y90 x70 gwebsite,www.FreewareWire.blogspot.com
 gui 3: font
 
@@ -143,6 +182,18 @@ ifnotequal, firsttime, 0
 
 
 Return
+
+GuiSize:
+Anchor("LouisValkner","wh")
+Anchor("newb","y")
+Anchor("delb","y")
+Anchor("drivetext","y")
+Anchor("ddrive","y")
+Anchor("context","xy")
+Anchor("oohshiny","xy")
+LV_ModifyCol(2,"autohdr")
+return
+
 
 	;For tray option
 PEMe:
@@ -164,11 +215,11 @@ run, readme.txt
 return
 	;In About window
 website:
-run, http:\\www.freewarewire.blogspot.com
+run, http:\\www.FreewareWire.blogspot.com
 return
 	;In About window
 email:
-run, mailto:amadmadhatter@gmail.com
+run, mailto:FreewareWire@gmail.com
 return
 
 	;Makes sure there is something in both fields in the add/edit window
@@ -210,16 +261,16 @@ return
 
 	;Checks if the balloon tip is enabled
 showballoontip:
-iniread, tempy, pem.ini, config, balloon
-ifequal, tempy, 0
-{	menu, main, check, Show balloon tip
+iniread, balloon, pem.ini, config, balloon
+if(balloon=0)
+{ 	menu, main, check, Show balloon tip	
 	iniwrite, 1, pem.ini, config, balloon
-	ballon=0
+	balloon=1
 }
 else
 {	Menu, main, uncheck, Show balloon tip
 	iniwrite, 0, pem.ini, config, balloon
-	Ballon=1
+	balloon=0
 }
 return
 
@@ -268,7 +319,10 @@ return
 
 	;For "?" button
 mainmenu:
-Menu, main, show
+Guicontrolget, pos, pos, oohshiny
+posx+=23
+posy+=23
+Menu, main, show,%posx%,%posy%
 return
 
 	;Installs the registry
@@ -330,7 +384,13 @@ return
 
 	;Handles adding an entry
 2ButtonOk:
-Gui 2:submit
+Gui 2:submit, nohide
+if(comparetocurrent(eext)=1)
+{	gui 2: +owndialogs
+	msgbox,,Extension already set,There is already a program set for the extension %ppath%!
+	Return
+}
+gui 2: hide
 IniWrite, %pPath%, pem.ini, key, %eExt%
 gui 1: default
 if numero = 0
@@ -359,7 +419,6 @@ ifequal, ui, un
 		Return
 }
 }
-iniwrite, 1, pem.ini, config, balloon
 exitapp
 
 	;Writes the drive to the INI file
@@ -367,6 +426,37 @@ writedrive:
 gui 1:submit, nohide
 iniwrite, %ddrive%, pem.ini, config, drive
 Return
+
+	;Checks if extension already has a program
+comparetocurrent(newextension) {
+	global
+	gui 1: default
+	loop, % LV_GetCount()
+	{	LV_GetText(checkit,A_Index)
+		if(newextension=checkit)
+			return 1
+	}
+	return 0
+}
+
+	;autocomplete...hopefully
+autocomplete:
+gui 2: submit, nohide
+if(ppath="")
+	return
+Menu, autocomplete, deleteall															;Removeall
+Gui 1: default
+loop, % LV_GetCount()
+	{	LV_GetText(checkit,A_Index,2)	
+		if(ppath=SubStr(checkit,1,Strlen(ppath)))
+			Menu, autocomplete, add, %checkit%,insertautocomplete						;Add
+	}
+Menu, autocomplete, show																;Show
+return
+	
+insertautocomplete:
+return
+	
 
 	;Massive function to determine the drive
 weedrives(drv)
