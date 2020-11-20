@@ -1,484 +1,367 @@
 #SingleInstance off
-#include anchor.ahk
-	;The variable 1 contains the argument
-numofargs=%0%
-ifequal, numofargs,0
-	goto nofile
-	
-	
-	
+#NoTrayIcon		;Leave this in here so the tray icon won't flicker if another PEM is started.
+THISVERSION=1.0
+INIFILE=PEM.ini
+SetWorkingDir, %A_ScriptDir%
 
-loop, %numofargs% {		;Loop to handle all arguments
-file:=%A_Index%
-ifnotexist, %file%
-	{ msgbox,48,Error 404, The file(s):`n`n%errormsg%`n`n could not be launched.
-		continue
-	}
-Setworkingdir, %A_ScriptDir%
-Splitpath, file,,,ext
-	;Read from file for program
-Iniread, program, pem.ini, key, %ext%
-
-ifequal, program, error
-{	if(ProgNotSet(program)="continue")
-		Continue
-}
-iniread, drv, pem.ini, config, drive
-	;Autodetects if PEM is read
-ifequal, drv, PEM
-	Splitpath, A_scriptDir,,,,,drv
-if(prognotexist(program)="continue")
-	continue
-program=%drv%\%program%
-full=`"%program%`" `"%file%`"
-Splitpath, program,,dir
-	;File is passed as paramater, with working directory
-run, %full%,%dir%
-}
-exitapp
-
-
-ProgNotSet(Byref program) {
-	global
-	if(program!="error")
-		return
-	if(errorconsole("Program not set for extension","There is currently no program set for `n`n." ext "`n", file)="break")
-		return, % "continue"
-	Iniread, program, pem.ini, key, %ext%
-	ProgNotSet(program)
-}
-
-ProgNotExist(byref program) {
-	global
-	ifexist, %drv%\%program%
-		Return
-	if(errorconsole("Program not found", "The program:`n`n" program "`n`n does not seem to exist.", file)="break")
-		return, % "continue"
-	ProgNotExist(program)
-}
-	
-
-	;Just a universal error message.
-errorconsole(Thing1, Thing2, file)
-{ ;gui 1: +owndialogs
-  Msgbox,51,%Thing1%,%Thing2%`n-----------------------`nDo you want to continue?`nYes = Open the file with the default system program`nNo = Open the PEM editor`nCancel = Do nothing	
-ifmsgbox,Yes
-{	run, %file%
-	return,% "break"
-}
-ifmsgbox, No
-{	run, %A_Scriptfullpath%
-	winwait, PEM - Portable Extension Manager
-	winget, PID, PID, PEM - Portable Extension Manager
-	Process, waitclose, %PID%
-	return
-}
-	return,% "break"
-;exitapp
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Argument Mode~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Hands any files passed as arguments~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+if(%0%>0) {
+	gosub Argmode
+	exitapp
 }
 
 
-	;The part of the program that's run if no paramater is passed.
-nofile:
+NoArgs:
+Menu, tray, icon
+#include PEM_gui.ahk
+#include PEM_Dropper.ahk
+AfterDropper:
 
-	;Tray menu
-Menu, Tray, NoStandard
-menu, tray, Click, 1
-Menu, Tray, Tip, PEM - Context is installed
-Menu, Tray, add, PEM Editor, PEMe
-Menu, Tray, add, Install context, install
-Menu, Tray, add, Remove Context, remove
-Menu, Tray, add, About PEM, About
-Menu, Tray, add, Exit, exittime
-Menu, Tray, default,PEM Editor
-	; ? button menu
-Menu, main, add, About PEM, about
-Menu, main, add, View Readme, readme
-Menu, main, add
-Menu, main, add, Silent Mode,silentmode
-Menu, main, add, Check registry on exit, donothingforreg
-Menu, main, add, Show balloon tip, showballoontip
-Menu, main, add, Exit, exittime
-
-	;Checks for config options in INI
-Iniread, tempy, pem.ini, config, checkRegistry
-if(tempy = "" or not tempy = 0)
+;``````````````````````````Config options in INI``````````````````````````
+Iniread, TempVar, %INIFILE%, config, checkRegistry,1
+if(TempVar = "" or not TempVar = 0)
 	Menu, main, check,Check registry on exit
 
-Iniread, balloon, pem.ini, config, balloon
-if(balloon!=0)
+Iniread, checkPrograms, %INIFILE%, config, checkPrograms,0
+if(checkPrograms = "" or not checkPrograms = 0)
+	Menu, main, check,Check programs on start
+
+Iniread, startintray, %INIFILE%, config, startInTray,0
+if(startintray = "" or not startintray = 0)
+	Menu, main, check,Start in tray
+
+Iniread, showBalloon, %INIFILE%, config, showBalloon,1
+if(showBalloon!=0)
 {	Menu, main, check, Show balloon tip
-	balloon=1
+	showBalloon=1
 }
 
+iniread, silentMode, %INIFILE%, config, silentMode, 0
+if(silentMode=1)
+{	Menu, main, check, Silent Mode
+	Menu, main, disable, Check registry on exit
+	Menu, main, disable, Show Balloon tip
+	Menu, main, disable, Start in tray
+	gosub install
+}
+else
+	gosub contextState
 
-	;GUI!
-Gui 1: +resize +minsize
-gui 1: add, listview, r10 w325 gLouisValkner -multi +sort vlouisvalkner, Ext|Program
-gui 1: add, button, w40 x20 y170 h20 vnewb, New
-gui 1: add, button, w40 x70 y170 h20 vdelb, Del
-Gui 1:Add,text,x115 y173 vdrivetext, Drive:
-Gui 1:Add, dropdownlist, w50 y170 x150 r7 vddrive gwritedrive,%weedrives%
-	iniread, drv, pem.ini, config, drive
-	weedrives(drv)
-
-gui 1: font, underline w600 
-gui 1: add, Button, x207 y170 w105 gcontextGO vcontext
-gui 1: font
-gui 1: add, button, y172 x317 w20 h20 gmainmenu voohshiny,?
-
-	;Adding of entries
-loop, read, pem.ini
+;``````````````````````````Add Entries``````````````````````````
+gui 1: default
+iniread, drv, pem.ini, config, drive
+drv := drv = "PEM" ? SubStr(A_ScriptDir,1,2) : drv
+loop, read, %INIFILE%
 {
-	ifinstring, A_Loopreadline,=
-	{ 
-		Stringsplit,part, A_LoopReadLine,=
-		Iniread, addit,pem.ini, key, %part1%
-		ifnotequal, addit, error
-			LV_Add("",part1,addit)
+	if(A_LoopReadLine="[key]")
+	{	ReadNow=1
+		Continue
+	}
+	if(ReadNow=1)
+	{
+		if(A_LoopReadLine="[config]" or A_LoopReadLine="[Dropper]")
+			break
+		ifinstring, A_Loopreadline,=
+		{ 
+			Stringsplit,part, A_LoopReadLine,=
+			Iniread, part2,%INIFILE%, key, %part1%
+			if(part2="ERROR")
+				Continue
+			if(checkPrograms=1 and drv!="ERROR" and silentmode!=1 and !FileExist(drv . "\" . part2) and warned!=1)
+			{	traytip,,One or more of your programs is missing so PEM may not work.
+				Settimer, removetraytip, -5000
+				Warned=1
+			}
+			LV_Add("",part1,part2)
+		}
 	}
 }
-gosub updateCombo
 LV_ModifyCol(1,40)
 LV_ModifyCol(2,"autohdr")
 
-	;Add/Edit window
-Gui 2: +owner1
-Gui 2:Add,groupbox,x5 y1 h70 w330 vgbox,Add
-Gui 2:Add,text,x13 y20,Extension
-Gui 2:Add,Edit,x13 y35 w50 veExt gifempty,
-Gui 2:Add,text,x70 y20,Path\Program
-Gui 2:Add,combobox,x70 y35 w240 vpPath			gifempty2
-gosub updateCombo
-Gui 2:Add,Button, y34 x315 w15 gpathselect,…
-Gui 2:Add, Button, y80 x200 w60 vok2 default disabled, OK
-Gui 2:Add, Button,y80 x270 w60, Cancel
-Gui 2:Font, s10 underline cRed
-Gui 2:Add, text, y80 x7 greadme, DO NOT include the drive letter!
+if(silentMode!=1 and startintray!=1)
+	gui 1: show, w345, PEM - Portable Extension Manager
 
-	;About window
-Gui 3: +owner1 +toolwindow
-Gui 3: add, picture, icon1 x10 y10 w50 h50, %A_scriptname%
-Gui 3: font, underline w600
-Gui 3: add, text,y3 x70, PEM v0.925
-gui 3: font
-gui 3: add, text,y20 x70 w250, PEM stands for `"Portable Extension Manager`". It is designed to simplify opening files without adding file associations to registry. It was written in Autohotkey by Jon (me). For more information`, view the readme.
-gui 3: font, underline
-gui 3: add, text, CBlue y75 x70 gemail, FreewareWire@gmail.com
-Gui 3: add, text, CBlue y90 x70 gwebsite,www.FreewareWire.blogspot.com
-gui 3: font
-
-	;Silent mode
-iniread, silent, pem.ini, config, silent, 0
-if(silent=1)
-{	Menu, main, check, Silent Mode
-	Menu, main, disable, Check registry on exit
-	Menu, main, disable, Show Balloon tip
-	goto install
+iniread, TempVar, %INIFILE%, config, startDropper
+if(TempVar=1)
+{	Menu, main, check, Start with Dropper
+	gosub Dropper_show
 }
-gosub checkcontext
 
-gui 1: show, w345, PEM - Portable Extension Manager
-
-	;Displays a "first time" message
-iniread, firsttime, pem.ini, config, firsttime
-ifnotequal, firsttime, 0
+;``````````````````````````"First Time" message``````````````````````````
+iniread, firstTime, %INIFILE%, config, firstTime
+ifnotequal, firstTime, 0
 {	gui 1: +owndialogs
-	msgbox, 68, Read the manual!, Greetings! It looks like this is your first time using PEM.`nIf it is, I highly suggest skimming the readme so you know`nwhat does what, the dos and donts, and such. It'll only take`nlike 2 minutes, I swear. It would make me ever so happy.`n-Jon		
+	msgbox, 68, Read the manual!, Greetings!`n`n`tIt looks like this is your first time using PEM.`nIf it is, I highly suggest skimming the readme so you know`nwhat does what, the dos and donts, and such. It'll only take`nlike 2 minutes, I swear. It would make me ever so happy.`n(Plus, it will help you use PEM!)`n`n-Jon		
 	ifmsgbox, Yes
-		gosub readme
-	iniwrite, 0, pem.ini, config, firsttime
+		gosub mReadme
+	iniwrite, 0, %INIFILE%, config, firstTime
 }
 
-
-Return
-
-GuiSize:
-Anchor("LouisValkner","wh")
-Anchor("newb","y")
-Anchor("delb","y")
-Anchor("drivetext","y")
-Anchor("ddrive","y")
-Anchor("context","xy")
-Anchor("oohshiny","xy")
-LV_ModifyCol(2,"autohdr")
+settimer,EmptyMem, 10000
+EmptyMem:
+EmptyMem()
 return
 
+;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!END OF AUTOEXECUTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-	;For tray option
-PEMe:
-gui 1: show, w345, PEM - Portable Extension Manager
-Return
-	;For tray option
-About:
-gui 3: show, autosize, About PEM
-Return
 
-	;Readme
-readme:
-ifnotexist, readme.txt
-	{ 	gui 1: +owndialogs	
-		msgbox,48,File Not Found, The Readme does not seem to exist.	
-		Return
-	}
-run, readme.txt
-return
-	;In About window
-website:
-run, http:\\www.FreewareWire.blogspot.com
-return
-	;In About window
-email:
-run, mailto:FreewareWire@gmail.com
-return
-
-	;Makes sure there is something in both fields in the add/edit window
-ifempty:
-ifempty2:
-gui 2: submit, nohide
-ifequal, ppath,
-{	guicontrol 2:disabled,ok2,
-	Return
-}
-ifequal, eext,
-{	guicontrol 2:disabled,ok2,
-	Return
-}
-guicontrol 2:enabled,ok2,
-return
-
-	;For the "..." button in add/edit
-pathselect:
-FileselectFile, ppath,,,Select Program
-Splitpath, ppath,p2,p1,,,pn
-Stringreplace, p1, p1, %pn%\,
-ppath:=p1 . "\" . p2
-Guicontrol 2:,ppath,%ppath%
-return
-
-	;Handles the "Silent Mode" Menu option
-silentmode:
-iniread, tempy, pem.ini, config, silent,0
-ifequal, tempy, 0
-{	Menu, main, check, Silent Mode
-	Menu, main, disable, Check registry on exit
-	Menu, main, disable, Show Balloon tip
-	iniwrite, 1, pem.ini, config, silent
-}
-else
-{	Menu, main, uncheck, Silent Mode
-	Menu, main, enable, Check registry on exit
-	Menu, main, enable, Show Balloon tip
-	iniwrite, 0, pem.ini, config, silent
-}
-return
-
-	;Checks if "registry check on exit" is enabled
-Donothingforreg:
-Iniread, tempy, pem.ini, config, checkRegistry
-ifequal, tempy, 0
-{	Menu, main, check, Check registry on exit
-	iniwrite, 1, pem.ini, config, checkregistry
-}
-Else
-{	Menu, main, uncheck, Check registry on exit
-	iniwrite, 0, pem.ini, config, checkregistry
-}
-return
-
-	;Checks if the balloon tip is enabled
-showballoontip:
-iniread, balloon, pem.ini, config, balloon
-if(balloon=0)
-{ 	menu, main, check, Show balloon tip	
-	iniwrite, 1, pem.ini, config, balloon
-	balloon=1
-}
-else
-{	Menu, main, uncheck, Show balloon tip
-	iniwrite, 0, pem.ini, config, balloon
-	balloon=0
-}
-return
-
-	;Handles any double clicks on the ListView
-LouisValkner:
-ifequal, A_GuiEvent,DoubleClick
-{ LV_GetText(rowExt, A_EventInfo,1)
-LV_GetText(Rowpath, A_EventInfo,2)
-numero:=A_EventInfo
-Gui 2: show, autosize,Edit entry
-Guicontrol 2:, gbox, Edit extension - %rowExt%
-GuiControl 2:, eExt, %rowext%
-GuiControl 2:, pPath, %rowpath%
-}
-return
-
-	;Updates the drop down list of previously used paths
-updateCombo:
-guicontrol 2:,pPath,|
-gui 1: default
-CB_String=
-Loop, % LV_GetCount()
-{	gui 1: default
-	LV_GetText(tempy,A_Index,2)
-	CB_String:=CB_String . tempy . "|"
-}
-Sort, CB_String,D| U Z
-guicontrol 2:,ppath,%CB_STRING%
-return
-
-	;Checks if the context is installed
-checkcontext:
-RegRead, UI, HKEY_CLASSES_ROOT, *\shell\PEM
-ifequal, errorlevel, 1
-	{ UI = in
-	Guicontrol 1:, context, Install Context
-	Menu, tray, disable, Remove context
-	Menu, Tray, enable, Install context
-	Menu, Tray, Tip, PEM - Context is not installed
-	}
-Else
-	{ UI = un
-	Guicontrol 1:, context, Remove Context
-	Menu, tray, enable, Remove context
-	Menu, Tray, disable, Install context
-	Menu, Tray, Tip, PEM - Context is installed
-	}
-return
-
-	;Checks if context is installed, then installs/removes
-contextGO:
-gosub checkcontext
-ifequal, UI, In
-{  	gosub, install
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Glabels~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;``````````````````````````GUI 1: Main``````````````````````````
+gListView:
+if(A_GuiEvent!="DoubleClick")
 	return
-}
-ifequal, UI, Un
-	gosub, remove
+selectedRow:=A_EventInfo
+goto _showGUI2
+gListViewEnter:
+selectedRow:=LV_GetNext(0, "Focused")
+if selectedRow=0
+	Return
+_showGUI2:
+LV_GetText(ExtVar, selectedRow,1)
+LV_GetText(PathVar, selectedRow,2)
+Guicontrol 2:, groupbox2, Edit extension - %ExtVar%
+GuiControl 2:, ExtVar, %ExtVar%
+GuiControl 2:, PathVar, % updatecombo(PathVar)
+Gui 2: show, autosize,Edit entry
+return
+
+gButtonNew:
+gui 1: +disabled
+selectedRow=0
+Guicontrol 2:, PathVar,% updatecombo()
+guicontrol 2:, ExtVar,
+Guicontrol 2:, groupbox2, New Extension
+gui 2: show, autosize,Add entry
+return
+
+gButtonDel:
+gui 1: default
+selectedRow:=LV_GetNext()
+if(selectedRow=0)
+	return
+LV_GetText(ExtVar,selectedRow,1)
+LV_Delete(selectedRow)
+if(selectedRow=LV_GetCount() + 1)
+ LV_Modify(selectedRow - 1, "Select")
+Else
+ LV_Modify(selectedRow, "Select")
+Inidelete, %INIFILE%, key, %ExtVar%
+return
+
+gDriveList:
+gui 1:submit, nohide
+iniwrite, %driveList%, %INIFILE%, config, drive
+Return
+
+gToggleContext:
+if(checkcontext()=0)
+  	goto install
+else
+	goto remove
 return
 
 	;For "?" button
-mainmenu:
-Guicontrolget, pos, pos, oohshiny
-posx+=23
-posy+=23
-Menu, main, show,%posx%,%posy%
-return
-
-	;Installs the registry
-install:
-RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\,,Open with PEM
-RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\command,,`"%A_scriptfullpath%`" `"`%1`"
-gosub, checkcontext
-return
-	;Removes the registry
-remove:
-Regdelete, HKEY_CLASSES_ROOT, *\shell\PEM
-gosub, checkcontext
-return
-
-	;Handles if the main GUI closes
-guiclose:
-ifnotequal, balloon, 0
-{ 	traytip,,PEM will stay in your tray because it loves you.
-	Settimer, ontip, 3000
-	Balloon=0
-}
-gui 1: hide
-gui 2: hide
-gui 3: hide
-Return
-	;Handles if Add/Edit window is closed
-2guiclose:
-gui 1: -Disabled
-gui 2: hide
-gui 1: show
-return
-	;Deletes tray balloon
-ontip:
-settimer, ontip, off
-traytip
-return
-
-	;Handles "New" Button
-ButtonNew:
-gui 2: show, autosize,Add entry
-gui 1: +disabled
-Guicontrol 2:, ppath,
-guicontrol 2:, eext,
-Guicontrol 2:, gbox, New Extension
-numero=0
-return
-	;Handles "Del" Button
-ButtonDel:
+gmainmenu:
 gui 1: default
-deleteIt:=LV_GetNext()
-LV_GetText(tempExt,deleteIt,1)
-LV_Delete(deleteIt)
-ifequal, deleteIt, % LV_GetCount() + 1
- LV_Modify(deleteIT - 1, "Select")
-Else
- LV_Modify(deleteIt, "Select")
-gosub updateCombo
-Inidelete, pem.ini, key, %tempext%
+Coordmode, menu, relative
+Guicontrolget, menPos_, pos, MenuButton
+menPos_x+=menPos_w+3
+;~ menPos_y+=menPos_y+3
+Menu, main, show,%menPos_x%,%menPos_y%
 return
 
-	;Handles adding an entry
+;``````````````````````````GUI 2: Add/Edit``````````````````````````
+	;For the "..." button
+gPathselect:
+gui 2: +OwnDialogs
+FileselectFile, PathVar,,,Select Program
+if(PathVar="")
+	Return
+Splitpath, PathVar,part2,part1,,,part0
+Stringreplace, part1, part1, %part0%\,
+PathVar:=part1 . "\" . part2
+Guicontrol 2:,PathVar,%PathVar%||
+
+	;Makes sure there is something in both fields in the add/edit window
+gIfEmpty:
+gui 2: submit, nohide
+if(PathVar="" or ExtVar="")
+	guicontrol 2:disabled,ok2button
+Else
+	guicontrol 2:enabled,ok2button
+return
+
 2ButtonOk:
 Gui 2:submit, nohide
-if(comparetocurrent(eext)=1)
+if(selectedRow=0 and CheckIfDupe(ExtVar)=1)
 {	gui 2: +owndialogs
-	msgbox,,Extension already set,There is already a program set for the extension %eext%!
+	msgbox,,Extension already set,There is already a program set for the extension %ExtVar%!
 	Return
 }
 gui 2: hide
-IniWrite, %pPath%, pem.ini, key, %eExt%
+IniWrite, %PathVar%, %INIFILE%, key, %ExtVar%
 gui 1: default
-if numero = 0
-{  LV_Add("",eext,ppath)
-	gosub updateCombo
-}
+if(selectedRow=0)
+	LV_Add("",ExtVar,PathVar)
 Else
-	LV_Modify(numero,"",eext,ppath)
-	;Handles if "Cancel" button is pressed in Add/Edit
+	LV_Modify(selectedRow,"",ExtVar,PathVar)
+
 2ButtonCancel:
 gui 1: -Disabled
 gui 2: hide
 gui 1: show
 return
 
-	;For when it is time to exit
-exittime:
-iniread, silent, pem.ini, config, silent, 0
-if(silent=1)
-{	Regdelete, HKEY_CLASSES_ROOT, *\shell\PEM
-	ExitApp
-}
-Iniread, nothing, pem.ini, config, checkregistry
-ifnotequal, nothing, 0
-{
-gosub checkcontext
-ifequal, ui, un
-{ gui 1: +owndialogs
-	msgbox,51,Context still installed,The context is still installed. Do you want to remove it before quitting?`n`nYes = Remove context then quit`nNo = Quit without removing`nCancel = Do not remove or quit	
-	ifmsgbox, Yes
-		gosub remove
-	else ifmsgbox, Cancel
-		Return
-}
-}
-exitapp
 
-	;Writes the drive to the INI file
-writedrive:
-gui 1:submit, nohide
-iniwrite, %ddrive%, pem.ini, config, drive
+;``````````````````````````GUI 3: About``````````````````````````
+gEmail:
+run, mailto:FreewareWire@gmail.com
+return
+
+gWebsite:
+run, http://sites.google.com/site/freewarewiresoftware
+return
+
+;``````````````````````````Menu glabels``````````````````````````
+mShowPEM:
+if(ismax=1)
+	gui 1: show, Maximize, PEM - Portable Extension Manager
+else
+	gui 1: show,, PEM - Portable Extension Manager
 Return
 
+mShowAbout:
+gui 3: show, autosize, About PEM
+Return
+
+mReadme:
+ifnotexist, readme.txt
+{ 	gui 1: +owndialogs	
+	msgbox,48,File Not Found, The Readme does not seem to exist.
+	Return
+}
+run, readme.txt
+return
+
+	;Handles the "Silent Mode" Menu option
+mSilentMode:
+iniread, TempVar, %INIFILE%, config, silentMode,0
+ifequal, TempVar, 0
+{	Menu, main, check, Silent Mode
+	Menu, main, disable, Check registry on exit
+	Menu, main, disable, Show Balloon tip
+	Menu, main, disable, Start in tray
+	iniwrite, 1, %INIFILE%, config, silentMode
+}
+else
+{	Menu, main, uncheck, Silent Mode
+	Menu, main, enable, Check registry on exit
+	Menu, main, enable, Show Balloon tip
+	Menu, main, enable, Start in tray
+	iniwrite, 0, %INIFILE%, config, silentMode
+}
+return
+
+mCheckProgramsOnStart:
+Iniread, TempVar, %INIFILE%, config, checkPrograms,0
+ifequal, TempVar, 0
+{	Menu, main, check, Check programs on start
+	iniwrite, 1, %INIFILE%, config, checkprograms
+}
+Else
+{	Menu, main, uncheck, Check programs on start
+	iniwrite, 0, %INIFILE%, config, checkprograms
+}
+return
+
+mCheckRegOnExit:
+Iniread, TempVar, %INIFILE%, config, checkRegistry,1
+ifequal, TempVar, 0
+{	Menu, main, check, Check registry on exit
+	iniwrite, 1, %INIFILE%, config, checkregistry
+}
+Else
+{	Menu, main, uncheck, Check registry on exit
+	iniwrite, 0, %INIFILE%, config, checkregistry
+}
+return
+
+mStartInTray:
+Iniread, TempVar, %INIFILE%, config, startInTray,0
+ifequal, TempVar, 0
+{	Menu, main, check, Start in tray
+	iniwrite, 1, %INIFILE%, config, startInTray
+}
+Else
+{	Menu, main, uncheck, Start in tray
+	iniwrite, 0, %INIFILE%, config, startInTray
+}
+return
+
+	;Toggles Dropper to start with PEM
+mDropperOnStart:
+Iniread, TempVar, %INIFILE%, config, startDropper,0
+ifequal, TempVar, 0
+{	Menu, main, check, Start with Dropper
+	iniwrite, 1, %INIFILE%, config, startDropper
+}
+Else
+{	Menu, main, uncheck, Start with Dropper
+	iniwrite, 0, %INIFILE%, config, startDropper
+}
+return
+
+	;Checks if the balloon tip is enabled
+mShowBalloonTip:
+iniread, showBalloon, %INIFILE%, config, showBalloon,1
+if(showBalloon=0)
+{ 	menu, main, check, Show balloon tip	
+	iniwrite, 1, %INIFILE%, config, showBalloon
+}
+else
+{	Menu, main, uncheck, Show balloon tip
+	iniwrite, 0, %INIFILE%, config, showBalloon
+}
+return
+
+;``````````````````````````GUI Events``````````````````````````
+guiclose:
+iniread, showBalloon, %INIFILE%, config, showBalloon,0
+iniread, silentMode, %INIFILE%, config, silentMode,0
+if(showBalloon!=0 and silentMode!=1)
+{ 	traytip,,PEM will stay in your tray because it loves you.
+	Settimer, removetraytip, -3000
+	iniwrite, 0, %INIFILE%, config, showBalloon
+}
+WinGet, IsMax, MinMax, PEM - Portable Extension Manager
+gui 1: hide
+gui 2: hide
+gui 3: hide
+Return
+
+2guiclose:
+gui 1: -Disabled
+gui 2: hide
+gui 1: show
+return
+
+GuiSize:
+Anchor("ListViewVar","wh")
+Anchor("newbutton","y")
+Anchor("delbutton","y")
+Anchor("drivetext","y")
+Anchor("drivelist","y")
+Anchor("contextbutton","xy")
+Anchor("menubutton","xy")
+LV_ModifyCol(2,"autohdr")
+return
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Functions~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	;Checks if extension already has a program
-comparetocurrent(newextension) {
-	global
+CheckIfDupe(newextension)
+{	
 	gui 1: default
 	loop, % LV_GetCount()
 	{	LV_GetText(checkit,A_Index)
@@ -488,64 +371,97 @@ comparetocurrent(newextension) {
 	return 0
 }
 
-	
-	;Massive function to determine the drive
-weedrives(drv)
-{ 	ifequal, drv, A:
-		GuiControl 1:,ddrive, PEM|A:||B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, B:
-		GuiControl 1:,ddrive, PEM|A:|B:||C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, C:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:||D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, D:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:||E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, E:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:||F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, F:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:||G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, G:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:||H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, H:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:||I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, I:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:||J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, J:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:||K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, K:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:||L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, L:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:||M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, M:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:||N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, N:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:||O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, O:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:||P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, P:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:||Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, Q:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:||R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, R:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:||S:|T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, S:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:||T:|U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, T:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:||U:|V:|W:|X:|Y:|Z:
-	else ifequal, drv, U:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:||V:|W:|X:|Y:|Z:
-	else ifequal, drv, V:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:||W:||X:|Y:|Z:
-	else ifequal, drv, W:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:||X:|Y:|Z:
-	else ifequal, drv, X:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:||Y:|Z:
-	else ifequal, drv, Y:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:||Z:
-	else ifequal, drv, Z:
-		GuiControl 1:,ddrive, PEM|A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:||
-	else 
-	{	GuiControl 1:,ddrive, PEM||A:|B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
-		Iniwrite, PEM, pem.ini, config, drive
-	}
-	
+EmptyMem(PID="AHK Rocks"){
+    pid:=(pid="AHK Rocks") ? DllCall("GetCurrentProcessId") : pid
+    h:=DllCall("OpenProcess", "UInt", 0x001F0FFF, "Int", 0, "Int", pid)
+    DllCall("SetProcessWorkingSetSize", "UInt", h, "Int", -1, "Int", -1)
+    DllCall("CloseHandle", "Int", h)
 }
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Etc~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;``````````````````````````Registry stuff``````````````````````````
+checkcontext()
+{
+	RegRead, RegInstalled, HKEY_CLASSES_ROOT, *\shell\PEM
+	if(errorlevel=1)
+		return 0
+	Else
+		return 1
+}
+
+ContextState:
+if(checkContext()=1)
+	goto _isInstalled
+Else
+	goto _notInstalled
+
+install:
+if(!A_Iscompiled and !DontCare)
+{	Traytip,Script is not compiled,PEM is currently not compiled so the registry key will give an error.`nIt will still be created for debugging purposes but will not work.,10,2
+	DontCare=1
+}
+RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\,,Open with PEM
+RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\command,,`"%A_scriptfullpath%`" `"`%1`"
+_isInstalled:
+Guicontrol 1:, contextbutton, Remove Context
+Menu, tray, enable, Remove context
+Menu, Tray, disable, Install context
+Menu, Tray, Tip, PEM - Context is installed
+return
+
+remove:
+Regdelete, HKEY_CLASSES_ROOT, *\shell\PEM
+_notInstalled:
+Guicontrol 1:, contextbutton, Install Context
+Menu, tray, disable, Remove context
+Menu, Tray, enable, Install context
+Menu, Tray, Tip, PEM - Context is not installed
+return
+
+;``````````````````````````Other``````````````````````````
+	;Updates the drop down list of previously used paths
+updateCombo(choose="")
+{	global
+	gui 1: default
+	CB_String=
+	Loop, % LV_GetCount()
+	{	LV_GetText(TempVar,A_Index,2)
+		CB_String:=CB_String . TempVar . "|"
+	}
+	Sort, CB_String,D| U Z
+	if not choose
+		return CB_String
+	CB_String.="|"
+	Ifinstring, CB_String,%choose%
+		StringReplace, CB_String,CB_String,%choose%|,%choose%||
+;~ 	if substr(CB_String,StrLen(CB_String),1)="|"
+	return CB_String
+}
+
+removetraytip:
+traytip
+return
+
+exittime:
+iniread, TempVar, %INIFILE%, config, silentMode, 0
+if(TempVar=1)
+{	Regdelete, HKEY_CLASSES_ROOT, *\shell\PEM
+	ExitApp
+}
+Iniread, TempVar, %INIFILE%, config, checkregistry
+if(TempVar!=0)
+{
+	if(checkContext()=1)
+	{ 	gui 1: +owndialogs
+		;Yes = Remove context then quit`nNo = Quit without removing`nCancel = Do not remove or quit	
+		msgbox,51,Context still installed,The context is still installed. Do you want to remove it before quitting?
+		ifmsgbox, Yes
+			gosub remove
+		else ifmsgbox, Cancel
+			Return
+	}
+}
+exitapp
+
+#include PEM_run.ahk
+#include AdjustResize.ahk

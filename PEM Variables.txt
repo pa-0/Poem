@@ -1,0 +1,30 @@
+VARIABLES:
+0				=		Number of arguments
+TempVar			=		Used for instances where a variable is needed very temporarily
+startInTray		=		Whether or not to start in the tray
+showBalloon		=		Whether or not to show the love balloon
+silentMode		=		Whether or not to run in silent mode
+firstTime		=		Whether or not to show the intro message box
+selectedRow		=		The current row of the Listview being worked upon/deleted
+ExtVar			=		Temp that holds the extension & handle for edit control
+PathVar			=		Temp that holds the path & handle for combobox control
+driveList		=		Temp that holds the drive & handle for the dropdownlist control
+RegInstalled	=		Whether or not the registry key is installed
+IsMax			=		Whether or not the main window is maximized or not
+
+Dropper_alpha	=		
+Dropper_Width	=		
+Dropper_height	=		
+Dropper_color	=		
+Dropper_icon	=		
+Dropper_status	=		
+Dropper_OnTop	=		
+Dropper_show	=		
+vDropper_same	=		
+Dropper_resize	=		
+Dropper_ID		=		ID of the Dropper window
+
+
+ARRAYS:
+part#			=		Used for arrays
+menPos_w/h/x/y		=		Position to show a menu
