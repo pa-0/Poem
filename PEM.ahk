@@ -1,40 +1,49 @@
 #SingleInstance off
+	;The variable 1 contains the argument
 file=%1%
 ifequal, file,
 	goto nofile
-	ifnotexist, %file%
+ifnotexist, %file%
 	{ msgbox,48,Error 404, The file:`n`n%file%`n`n either does not exist`, or is not a valid argument.
 	  ExitApp
 	}
 Setworkingdir, %A_ScriptDir%
 Splitpath, file,,,ext
+	;Read from file for program
 Iniread, program, pem.ini, key, %ext%
 ifequal, program, error
 	errorconsole("Program not set for extension","There is currently no program set for `n`n." ext "`n", file)
 iniread, drv, pem.ini, config, drive
+	;Autodetects if PEM is read
 ifequal, drv, PEM
 	Splitpath, A_scriptDir,,,,,drv
 program=%drv%\%program%
+	;Checks one last time if the program exists
 ifnotexist, %program%
 	errorconsole("Program not found", "The program:`n`n" program "`n`n does not seem to exist.", file)
 full=`"%program%`" `"%file%`"
-run, %full%
+Splitpath, program,,dir
+	;File is passed as paramater, with working directory
+run, %full%,%dir%
 exitapp
 	
+
+	;Just a universal error message.
 errorconsole(Thing1, Thing2, file)
-{ gui 1: +owndialogs
+{ ;gui 1: +owndialogs
   Msgbox,51,%Thing1%,%Thing2%`n-----------------------`nDo you want to continue?`nYes = Open the file with the default system program`nNo = Open the PEM editor`nCancel = Do nothing	
 ifmsgbox,Yes
 	run, %file%
 ifmsgbox, No
-	run, %A_scriptfullpath%
+	run, %A_Scriptfullpath%
 exitapp
 }
 
 
-
+	;The part of the program that's run if no paramater is passed.
 nofile:
 
+	;Tray menu
 Menu, Tray, NoStandard
 menu, tray, Click, 1
 Menu, Tray, Tip, PEM - Context is installed
@@ -44,7 +53,7 @@ Menu, Tray, add, Remove Context, remove
 Menu, Tray, add, About PEM, About
 Menu, Tray, add, Exit, exittime
 Menu, Tray, default,PEM Editor
-
+	; ? button menu
 Menu, main, add, About PEM, about
 Menu, main, add, View Readme, readme
 Menu, main, add
@@ -52,6 +61,7 @@ Menu, main, add, Check registry on exit, donothingforreg
 Menu, main, add, Show balloon tip, showballoontip
 Menu, main, add, Exit, exittime
 
+	;Checks for config options in INI
 Iniread, tempy, pem.ini, config, checkRegistry
 if(tempy = "" or not tempy = 0)
 	Menu, main, check,Check registry on exit
@@ -64,10 +74,10 @@ if(tempy <> 0)
 Else
 	balloon=0
 	
-	
+	;GUI!
 gui 1: add, listview, r10 w325 gLouisValkner -multi +sort, Ext|Program
-gui 1: add, button, w40 x20 y170 h20 vnewbutton, New
-gui 1: add, button, w40 x70 y170 h20 vdelbutton, Del
+gui 1: add, button, w40 x20 y170 h20, New
+gui 1: add, button, w40 x70 y170 h20, Del
 Gui 1:Add,text,x115 y173, Drive:
 Gui 1:Add, dropdownlist, w50 y170 x150 r7 vddrive gwritedrive,%weedrives%
 	iniread, drv, pem.ini, config, drive
@@ -78,6 +88,7 @@ gui 1: add, Button, x207 y170 w105 gcontextGO vcontext
 gui 1: font
 gui 1: add, button, y172 x317 w20 h20 gmainmenu voohshiny,?
 
+	;Adding of entries
 loop, read, pem.ini
 {
 	ifinstring, A_Loopreadline,=
@@ -91,6 +102,7 @@ loop, read, pem.ini
 LV_ModifyCol(1,40)
 LV_ModifyCol(2,"autohdr")
 
+	;Add/Edit window
 Gui 2: +owner1
 Gui 2:Add,groupbox,x5 y1 h70 w330 vgbox,Add
 Gui 2:Add,text,x13 y20,Extension
@@ -103,6 +115,7 @@ Gui 2:Add, Button,y80 x270 w60, Cancel
 Gui 2:Font, s10 underline cRed
 Gui 2:Add, text, y80 x7 greadme, DO NOT include the drive letter!
 
+	;About window
 Gui 3: +owner1 +toolwindow
 Gui 3: add, picture, icon1 x10 y10 w50 h50, %A_scriptname%
 Gui 3: font, underline w600
@@ -118,6 +131,7 @@ gosub checkcontext
 
 gui 1: show, w345, PEM - Portable Extension Manager
 
+	;Displays a "first time" message
 iniread, firsttime, pem.ini, config, firsttime
 ifnotequal, firsttime, 0
 {	gui 1: +owndialogs
@@ -130,14 +144,16 @@ ifnotequal, firsttime, 0
 
 Return
 
-
+	;For tray option
 PEMe:
 gui 1: show, w345, PEM - Portable Extension Manager
 Return
+	;For tray option
 About:
 gui 3: show, autosize, About PEM
 Return
 
+	;Readme
 readme:
 ifnotexist, readme.txt
 	{ gui 1: +owndialogs
@@ -146,13 +162,16 @@ ifnotexist, readme.txt
 	}
 run, readme.txt
 return
+	;In About window
 website:
 run, http:\\www.freewarewire.blogspot.com
 return
+	;In About window
 email:
 run, mailto:amadmadhatter@gmail.com
 return
 
+	;Makes sure there is something in both fields in the add/edit window
 ifempty:
 ifempty2:
 gui 2: submit, nohide
@@ -167,15 +186,16 @@ ifequal, eext,
 guicontrol 2:enabled,ok2,
 return
 
+	;For the "..." button in add/edit
 pathselect:
 FileselectFile, ppath,,,Select Program
 Splitpath, ppath,p2,p1,,,pn
 Stringreplace, p1, p1, %pn%\,
-ppath:=p1 . p2
+ppath:=p1 . "\" . p2
 Guicontrol 2:,ppath,%ppath%
 return
 
-
+	;Checks if "registry check on exit" is enabled
 Donothingforreg:
 Iniread, tempy, pem.ini, config, checkRegistry
 ifequal, tempy, 0
@@ -188,6 +208,7 @@ Else
 }
 return
 
+	;Checks if the balloon tip is enabled
 showballoontip:
 iniread, tempy, pem.ini, config, balloon
 ifequal, tempy, 0
@@ -202,6 +223,7 @@ else
 }
 return
 
+	;Handles any double clicks on the ListView
 LouisValkner:
 ifequal, A_GuiEvent,DoubleClick
 { LV_GetText(rowExt, A_EventInfo,1)
@@ -214,6 +236,7 @@ GuiControl 2:, pPath, %rowpath%
 }
 return
 
+	;Checks if the context is installed
 checkcontext:
 RegRead, UI, HKEY_CLASSES_ROOT, *\shell\PEM
 ifequal, errorlevel, 1
@@ -232,6 +255,7 @@ Else
 	}
 return
 
+	;Checks if context is installed, then installs/removes
 contextGO:
 gosub checkcontext
 ifequal, UI, In
@@ -242,20 +266,24 @@ ifequal, UI, Un
 	gosub, remove
 return
 
+	;For "?" button
 mainmenu:
 Menu, main, show
 return
 
+	;Installs the registry
 install:
 RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\,,Open with PEM
 RegWrite, REG_SZ, HKEY_CLASSES_ROOT, *\shell\PEM\command,,`"%A_scriptfullpath%`" `"`%1`"
 gosub, checkcontext
 return
+	;Removes the registry
 remove:
 Regdelete, HKEY_CLASSES_ROOT, *\shell\PEM
 gosub, checkcontext
 return
 
+	;Handles if the main GUI closes
 guiclose:
 ifnotequal, balloon, 0
 { 	traytip,,PEM will stay in your tray because it loves you.
@@ -266,16 +294,19 @@ gui 1: hide
 gui 2: hide
 gui 3: hide
 Return
+	;Handles if Add/Edit window is closed
 2guiclose:
 gui 1: -Disabled
 gui 2: hide
 gui 1: show
 return
+	;Deletes tray balloon
 ontip:
 settimer, ontip, off
 traytip
 return
 
+	;Handles "New" Button
 ButtonNew:
 gui 2: show, autosize,Add entry
 gui 1: +disabled
@@ -284,7 +315,7 @@ guicontrol 2:, eext,
 Guicontrol 2:, gbox, New Extension
 numero=0
 return
-
+	;Handles "Del" Button
 ButtonDel:
 gui 1: default
 deleteIt:=LV_GetNext()
@@ -297,6 +328,7 @@ Else
 Inidelete, pem.ini, key, %tempext%
 return
 
+	;Handles adding an entry
 2ButtonOk:
 Gui 2:submit
 IniWrite, %pPath%, pem.ini, key, %eExt%
@@ -305,12 +337,14 @@ if numero = 0
 	LV_Add("",eext,ppath)
 Else
 	LV_Modify(numero,"",eext,ppath)
+	;Handles if "Cancel" button is pressed in Add/Edit
 2ButtonCancel:
 gui 1: -Disabled
 gui 2: hide
 gui 1: show
 return
 
+	;For when it is time to exit
 exittime:
 Iniread, nothing, pem.ini, config, checkregistry
 ifnotequal, nothing, 0
@@ -328,11 +362,13 @@ ifequal, ui, un
 iniwrite, 1, pem.ini, config, balloon
 exitapp
 
+	;Writes the drive to the INI file
 writedrive:
 gui 1:submit, nohide
 iniwrite, %ddrive%, pem.ini, config, drive
 Return
 
+	;Massive function to determine the drive
 weedrives(drv)
 { 	ifequal, drv, A:
 		GuiControl 1:,ddrive, PEM|A:||B:|C:|D:|E:|F:|G:|H:|I:|J:|K:|L:|M:|N:|O:|P:|Q:|R:|S:|T:|U:|V:|W:|X:|Y:|Z:
@@ -392,5 +428,3 @@ weedrives(drv)
 	}
 	
 }
-
-^+r::reload
