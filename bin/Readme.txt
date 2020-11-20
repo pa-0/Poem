@@ -1,8 +1,8 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~~~~~~~~~~~~~~~~~~~~~Poem version 2.0~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~(C) Qweex 2012~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~(C) Qweex 2011-2015~~~~~~~~~~~~~~~~~~~~~
 ~~~~~~~~~~~~~~~~~~~~http://www.qweex.com~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~MrQweex@qweex.com~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~jon@qweex.com~~~~~~~~~~~~~~~~~~~~~~~~
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Poem is designed to make using apps on your USB stick. It does this by handling file associations instead of writing to
@@ -117,9 +117,9 @@ A: Well there are basically two schools of thought...
 
 7.----------Future plans---------------
 
--Better icon
 -Ability to set custom Context messages?
 -Add a way to delete ALL Poem contexts, in case some were left behind.
+-Basically re-write Dropper to be more modular
 
 8.----------Known bugs---------------
 
@@ -127,7 +127,7 @@ A: Well there are basically two schools of thought...
 -Dropper can't be transparent. IT SUCKS. I KNOW.
 
 9.----------Changelog---------------
-v1.0 stable
+v2.0 stable
 -Renamed to Poem!
 -Completely re-written; renamed variables, cleaned up code, split source into four files: Main, GUI, Run, and Dropper
 -Added Dropper!
@@ -184,7 +184,9 @@ v0.90 beta
 
 10.----------About me!---------------
 
-Ello! My name is Jon Petraglia, AKA MrQweex, and I'm a Computer Science student at the University of Colorado at
+~Note: I wrote this back in 2010. I'm older and wiser now, but might as well leave it in.~
+
+Ello! My name is Jon Petraglia, aka notbryant, and I'm a Computer Science student at the University of Colorado at
 Denver. I've been tinkering with Autohotkey for a while now and one of the byproducts was a program called "PEM", which
 eventually evolved into Poem.
 
@@ -199,7 +201,7 @@ I've re-written this section several times as time goes on, but here is the mess
 The reason I kept tweaking Poem is that I truly have a passion for software, especially freeware, and I hope that people
 will find it useful. If you want to help me at all, the most help you can give is by helping to spread the word about
 Poem and other of my softwares.
-~MrQweex
+~notbryant
 
 10.1----Special Thanks----
 
